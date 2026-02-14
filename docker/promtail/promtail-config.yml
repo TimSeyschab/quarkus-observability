@@ -1,0 +1,59 @@
+# Promtail-Konfiguration fuer Docker-Log-Scraping und Weiterleitung nach Loki.
+
+server:
+  # HTTP-Port fuer Promtail-Status/Debug-Endpunkte.
+  http_listen_port: 9080
+  # gRPC-Port (0 = deaktiviert).
+  grpc_listen_port: 0
+
+positions:
+  # Datei, in der Lesepositionen pro Logquelle persistiert werden.
+  filename: /tmp/positions.yaml
+
+clients:
+  - # Push-Ziel fuer Logeintraege in Loki.
+    url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - # Jobname fuer Docker-basierte Logquellen.
+    job_name: docker
+    pipeline_stages:
+      - # Entpackt Docker-Log-Envelope inkl. timestamp/stream.
+        docker: {}
+      - logfmt:
+          # Mapping von logfmt-Feldern aus der App-Logzeile.
+          mapping:
+            # Log-Level der Anwendung.
+            level:
+            # Eventname der Anwendung.
+            event:
+            # Trace-ID fuer Log/Trace-Korrelation.
+            trace_id:
+            # Span-ID fuer Log/Span-Korrelation.
+            span_id:
+            # Fachliche Order-ID fuer Filterung.
+            order_id:
+            # Fachliche Customer-ID fuer Filterung.
+            customer_id:
+            # Fachliche Coffee-ID-Liste fuer Filterung.
+            coffee_ids:
+      - labels:
+          # Felder, die als Loki-Labels indexiert werden.
+          level:
+          event:
+    docker_sd_configs:
+      - # Docker-Socket fuer Service Discovery laufender Container.
+        host: unix:///var/run/docker.sock
+        # Intervall fuer Discovery-Refresh.
+        refresh_interval: 5s
+    relabel_configs:
+      - # Nimmt den Docker-Containernamen als Label-Quelle.
+        source_labels: [__meta_docker_container_name]
+        # Entfernt den fuehrenden Slash aus dem Containernamen.
+        regex: "/(.*)"
+        # Ziel-Labelname in Loki.
+        target_label: container
+      - # Liest Compose-Service-Label als Quelle.
+        source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        # Ziel-Label fuer Service-Namen in Loki.
+        target_label: service

@@ -1,0 +1,409 @@
+{
+  "id": null,
+  "uid": "kafka-topics-overview",
+  "title": "Kafka Topics Overview",
+  "tags": [
+    "observability",
+    "kafka",
+    "redpanda"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "links": [
+    {
+      "title": "Technical Dashboard",
+      "url": "/d/quarkus-overview",
+      "type": "link",
+      "targetBlank": false
+    },
+    {
+      "title": "Compose Services",
+      "url": "/d/compose-services-overview",
+      "type": "link",
+      "targetBlank": false
+    },
+    {
+      "title": "Management Dashboard",
+      "url": "/d/coffeeshop-management",
+      "type": "link",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "topic",
+        "type": "query",
+        "label": "Topic",
+        "hide": 0,
+        "datasource": "Prometheus",
+        "query": "label_values(vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic!~\"__.*\"}, topic)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "group",
+        "type": "query",
+        "label": "Consumer Group",
+        "hide": 0,
+        "datasource": "Prometheus",
+        "query": "label_values(vectorized_kafka_group_offset{job=\"redpanda\"}, group)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Tracked Topics",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "count(count by (topic) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic!~\"__.*\",topic=~\"$topic\"}))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Active Consumer Groups",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "count(count by (group) (vectorized_kafka_group_offset{job=\"redpanda\",group=~\"$group\"}))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 4,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Total Consumer Lag",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Top Lagged Partition",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "max(clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 4,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Records Produced/s by Topic",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (topic) (rate(vectorized_cluster_partition_records_produced{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}[5m]))",
+          "legendFormat": "{{topic}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Records Fetched/s by Topic",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (topic) (rate(vectorized_cluster_partition_records_fetched{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}[5m]))",
+          "legendFormat": "{{topic}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Bytes Produced/s by Topic",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (topic) (rate(vectorized_cluster_partition_bytes_produced_total{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}[5m]))",
+          "legendFormat": "{{topic}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Consumer Lag by Topic/Group",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (topic,group) (clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
+          "legendFormat": "{{topic}} / {{group}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Producer Errors & Retries (App)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (topic) (rate(kafka_producer_topic_record_error_total{job=\"quarkus\",topic=~\"$topic\"}[5m]))",
+          "legendFormat": "errors {{topic}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (topic) (rate(kafka_producer_topic_record_retry_total{job=\"quarkus\",topic=~\"$topic\"}[5m]))",
+          "legendFormat": "retries {{topic}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "table",
+      "title": "Top Partition Lag (Topic/Group/Partition)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "topk(20, clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
+          "instant": true,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Kafka-Related Logs (app/redpanda)",
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{service=~\"app|redpanda\"} |~ \"kafka|redpanda|coffee-orders\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": true
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 24,
+        "h": 8
+      }
+    },
+    {
+      "type": "text",
+      "title": "Kafka-Leitfaden",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Kafka-Monitoring-Leitfaden\n- **Durchsatz**: Produced/Fetched Records und Bytes pro Topic zeigen die Last.\n- **Lag-Risiko**: Total Lag, Lag nach Topic/Group und Top Lagged Partition zeigen Consumer-Verzögerung.\n- **Fehlerkontext**: Producer Errors/Retries und Logs helfen, Broker- von App-Problemen zu trennen.\n- **Fokus**: Nutze Topic-/Group-Variablen, um den Impact-Bereich schnell einzugrenzen."
+      },
+      "transparent": true
+    },
+    {
+      "type": "piechart",
+      "title": "Produced Record Share by Topic (5m)",
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (topic) (rate(vectorized_cluster_partition_records_produced{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}[5m]))",
+          "legendFormat": "{{topic}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Current Lag by Topic/Group",
+      "gridPos": {
+        "x": 12,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (topic,group) (clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
+          "legendFormat": "{{topic}} / {{group}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  }
+}

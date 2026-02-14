@@ -1,0 +1,157 @@
+# OpenTelemetry Collector Konfiguration fuer Trace-Ingest, Tail-Sampling und Export nach Tempo.
+
+extensions:
+  # Stellt einen Healthcheck-Endpunkt des Collectors bereit.
+  health_check: {}
+  # Persistiert Exporter-Queues auf Disk, damit Neustarts nicht sofort Datenverlust verursachen.
+  file_storage:
+    # Zielverzeichnis fuer persistierte Queue-/State-Daten.
+    directory: /tmp/otelcol/file_storage
+    # Legt das Verzeichnis bei Bedarf automatisch an.
+    create_directory: true
+    # Timeout fuer Dateioperationen im Storage-Backend.
+    timeout: 10s
+    # Einstellungen fuer periodische Kompaktierung des File-Storage.
+    compaction:
+      # Fuehrt beim Collector-Start eine Kompaktierung aus.
+      on_start: true
+      # Fuehrt eine Kompaktierung nach Rueckgang von Lastspitzen aus.
+      on_rebound: true
+      # Schwellwert (MiB), ab dem eine Rebound-Kompaktierung angestossen wird.
+      rebound_trigger_threshold_mib: 100
+      # Zielwert (MiB), bis zu dem bei Rebound kompaktieren versucht wird.
+      rebound_needed_threshold_mib: 50
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        # OTLP/gRPC-Empfangsadresse fuer SDKs/Collector.
+        endpoint: 0.0.0.0:4317
+      http:
+        # OTLP/HTTP-Empfangsadresse fuer SDKs/Collector.
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    # Intervall, in dem Speichernutzung geprueft wird.
+    check_interval: 1s
+    # Harte Speichergreze in MiB, oberhalb derer Daten aktiv gedrosselt/verworfen werden.
+    limit_mib: 512
+    # Zusaetzliche Spike-Toleranz in MiB fuer kurzfristige Lastspitzen.
+    spike_limit_mib: 128
+
+  tail_sampling:
+    # Zeitfenster zum Sammeln von Spans pro Trace vor der Sampling-Entscheidung.
+    decision_wait: 15s
+    # Maximale Anzahl gleichzeitig gepufferter Traces fuer Tail-Sampling.
+    num_traces: 100000
+    # Erwartete neue Traces/Sekunde zur internen Kapazitaetsplanung.
+    expected_new_traces_per_sec: 500
+    # Sampling-Regeln (in Reihenfolge bewertet).
+    policies:
+      - name: keep-errors
+        # Regeltyp: Statuscode-basiert.
+        type: status_code
+        status_code:
+          # Behalte alle Traces mit Status ERROR.
+          status_codes: [ERROR]
+
+      - name: keep-slow-traces
+        # Regeltyp: Latenzbasiert.
+        type: latency
+        latency:
+          # Behalte Traces mit Gesamtdauer ueber diesem Schwellenwert (ms).
+          threshold_ms: 1000
+
+      - name: keep-business-order-lifecycle
+        # Regeltyp: String-Attribut-Match.
+        type: string_attribute
+        string_attribute:
+          # Zu pruefendes Attribut aus Trace-Spans.
+          key: http.route
+          # Whitelist der Business-Routen, die immer behalten werden.
+          values:
+            - /coffeeshop/orders
+            - /coffeeshop/orders/{orderId}
+            - /coffeeshop/orders/{orderId}/pickup
+
+      - name: sample-technical-q-endpoints
+        # Regeltyp: logisches UND aus Unterregeln.
+        type: and
+        and:
+          # Liste der Unterregeln, die gleichzeitig zutreffen muessen.
+          and_sub_policy:
+            - name: technical-route
+              type: string_attribute
+              string_attribute:
+                # Attribut, das auf technische Endpunkte geprueft wird.
+                key: http.route
+                # Aktiviert Regex-Matching fuer die Werte.
+                enabled_regex_matching: true
+                # Regex fuer technische Quarkus-/q-Endpunkte.
+                values:
+                  - ^/q/.*$
+            - name: technical-route-probability
+              type: probabilistic
+              probabilistic:
+                # Sampling-Anteil in Prozent fuer technische Routen.
+                sampling_percentage: 5
+
+      - name: sample-fast-normal-traces
+        # Regeltyp: probabilistisches Sampling fuer verbleibende Traces.
+        type: probabilistic
+        probabilistic:
+          # Sampling-Anteil in Prozent fuer normale/schnelle Traces.
+          sampling_percentage: 10
+
+  batch:
+    # Maximale Wartezeit vor dem Flush eines Batches.
+    timeout: 2s
+    # Zielgroesse je Export-Batch.
+    send_batch_size: 1024
+    # Harte Obergrenze je Export-Batch.
+    send_batch_max_size: 2048
+
+exporters:
+  otlphttp/tempo:
+    # Ziel-Endpoint des Tempo-OTLP/HTTP-Ingest.
+    endpoint: http://tempo:4318
+    # Transportkomprimierung fuer kleinere Payloads.
+    compression: gzip
+    # Timeout je Export-Anfrage.
+    timeout: 10s
+    retry_on_failure:
+      # Aktiviert automatisches Retry bei Export-Fehlern.
+      enabled: true
+      # Startintervall fuer Retry-Backoff.
+      initial_interval: 1s
+      # Maximales Intervall fuer Retry-Backoff.
+      max_interval: 30s
+      # Maximale Gesamtdauer fuer Retry-Versuche.
+      max_elapsed_time: 5m
+    sending_queue:
+      # Aktiviert asynchrone Export-Queue.
+      enabled: true
+      # Anzahl paralleler Queue-Consumer fuer Export.
+      num_consumers: 8
+      # Maximale Queue-Laenge (Anzahl Elemente).
+      queue_size: 20000
+      # Persistenz-Backend fuer Queue-Inhalte.
+      storage: file_storage
+
+service:
+  telemetry:
+    metrics:
+      # Address/Port fuer Collector-Selbstmetriken.
+      address: 0.0.0.0:8888
+  # Aktivierte Extensions im Collector-Prozess.
+  extensions: [health_check, file_storage]
+  pipelines:
+    traces:
+      # Eingangsreceiver der Trace-Pipeline.
+      receivers: [otlp]
+      # Verarbeitungsreihenfolge der Processor-Kette.
+      processors: [memory_limiter, tail_sampling, batch]
+      # Ziel-Exporter der Trace-Pipeline.
+      exporters: [otlphttp/tempo]

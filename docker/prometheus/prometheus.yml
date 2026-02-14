@@ -1,0 +1,68 @@
+# Prometheus-Konfiguration fuer lokales Scraping von App- und Infrastruktur-Metriken.
+
+global:
+  # Standardintervall fuer Scrape-Zyklen aller Jobs.
+  scrape_interval: 10s
+
+rule_files:
+  # Pfad-Muster fuer geladene Alert-/Recording-Regeln.
+  - /etc/prometheus/alerts/*.yml
+
+scrape_configs:
+  - # Eindeutiger Jobname fuer Quarkus-Anwendung.
+    job_name: quarkus
+    # Metrik-Endpunkt der Quarkus-App.
+    metrics_path: /q/metrics
+    scrape_protocols:
+      - # Bevorzugtes Protokoll fuer OpenMetrics inkl. Exemplars.
+        OpenMetricsText1.0.0
+    http_headers:
+      Accept:
+        values:
+          - # Erzwingt OpenMetrics-Content-Type beim Scrape.
+            application/openmetrics-text; version=1.0.0; charset=utf-8
+    static_configs:
+      - # Zieladresse der App-Metriken im Compose-Netz.
+        targets: ["app:8080"]
+
+  - # Job fuer Prometheus-Selbstmetriken.
+    job_name: prometheus
+    static_configs:
+      - # Zieladresse der eigenen Prometheus-Instanz.
+        targets: ["prometheus:9090"]
+
+  - # Job fuer Loki-Operational-Metriken.
+    job_name: loki
+    static_configs:
+      - # Zieladresse der Loki-Metriken.
+        targets: ["loki:3100"]
+
+  - # Job fuer Tempo-Operational-Metriken.
+    job_name: tempo
+    static_configs:
+      - # Zieladresse der Tempo-Metriken.
+        targets: ["tempo:3200"]
+
+  - # Job fuer MariaDB-Exporter-Metriken.
+    job_name: mariadb
+    static_configs:
+      - # Zieladresse des mysqld-exporter.
+        targets: ["mariadb-exporter:9104"]
+
+  - # Job fuer OTel-Collector-Selbstmetriken.
+    job_name: otel-collector
+    static_configs:
+      - # Zieladresse des Collector-Metrikendpunkts.
+        targets: ["otel-collector:8888"]
+
+  - # Job fuer Container-Runtime-Metriken ueber cAdvisor.
+    job_name: cadvisor
+    static_configs:
+      - # Zieladresse der cAdvisor-Metriken.
+        targets: ["cadvisor:8080"]
+
+  - # Job fuer Redpanda-/Kafka-Broker-Metriken.
+    job_name: redpanda
+    static_configs:
+      - # Zieladresse der Redpanda-Admin/Metrics-API.
+        targets: ["redpanda:9644"]

@@ -1,0 +1,516 @@
+{
+  "id": null,
+  "uid": "coffeeshop-management",
+  "title": "CoffeeShop - Management Overview",
+  "tags": [
+    "quarkus",
+    "observability",
+    "business"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "10s",
+  "links": [
+    {
+      "title": "Technical Dashboard",
+      "url": "/d/quarkus-overview",
+      "type": "link",
+      "targetBlank": false
+    },
+    {
+      "title": "Storage Dashboard",
+      "url": "/d/observability-storage",
+      "type": "link",
+      "targetBlank": false
+    },
+    {
+      "title": "Prometheus Alerts",
+      "url": "http://localhost:9090/alerts",
+      "type": "link",
+      "targetBlank": true
+    }
+  ],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Sold Beverages per Minute",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(coffeeshop_beverages_sold_total{job=\"quarkus\"}[5m])) * 60",
+          "legendFormat": "beverages/min",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Revenue Last 60m",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(coffeeshop_revenue_cents_total{job=\"quarkus\"}[1h])) / 100",
+          "legendFormat": "EUR/hour",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Top Drinks Last 60m",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (coffee) (increase(coffeeshop_beverages_sold_by_coffee_total{job=\"quarkus\"}[1h]))",
+          "legendFormat": "{{coffee}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Current Customer Wait (avg)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "coffeeshop_current_wait_seconds_avg{job=\"quarkus\"}",
+          "legendFormat": "avg wait",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Kitchen Backpressure (orders)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "coffeeshop_kitchen_backpressure_orders{job=\"quarkus\"}",
+          "legendFormat": "open kitchen queue",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Kitchen Backpressure ETA (seconds)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "coffeeshop_kitchen_backpressure_seconds_estimate{job=\"quarkus\"}",
+          "legendFormat": "ETA",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Order Flow Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(coffeeshop_orders_submitted_total{job=\"quarkus\"}[5m]))",
+          "legendFormat": "submitted/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(coffeeshop_orders_ready_total{job=\"quarkus\"}[5m]))",
+          "legendFormat": "ready/s",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(coffeeshop_orders_picked_up_total{job=\"quarkus\"}[5m]))",
+          "legendFormat": "picked-up/s",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Wait-to-Ready p95",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(coffeeshop_customer_wait_to_ready_seconds_bucket{job=\"quarkus\"}[5m])))",
+          "legendFormat": "p95 wait",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Business Logs (Loki)",
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{service=\"app\"} | logfmt | event=~\"order_submitted|order_ready|order_picked_up|ready_event_received|kueche_order_processed\"",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Business Span p95 (Tempo)",
+      "datasource": "Tempo",
+      "targets": [
+        {
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"quarkus-observability\" && (name = \"tresen.take-order\" || name = \"kueche.process-order\" || name = \"tresen.process-ready-event\") } | quantile_over_time(duration, 0.95)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SLO: Customer Wait p95 (5m)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(coffeeshop_customer_wait_to_ready_seconds_bucket{job=\"quarkus\"}[5m])))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 90
+              },
+              {
+                "color": "red",
+                "value": 120
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SLO: Kitchen ETA",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "coffeeshop_kitchen_backpressure_seconds_estimate{job=\"quarkus\"}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 180
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SLO: Flow Imbalance (submitted-ready)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(coffeeshop_orders_submitted_total{job=\"quarkus\"}[10m])) - sum(rate(coffeeshop_orders_ready_total{job=\"quarkus\"}[10m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 0.2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "text",
+      "title": "Management-Leitfaden",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Business-Leitfaden\n- **Nachfrage**: Sold Beverages und Order Flow zeigen die eingehende Last.\n- **Servicequalität**: Customer Wait p95 und Kitchen ETA zeigen die Kundenauswirkung.\n- **Mix**: Beverage Share hilft, Topseller und Lagerdruck zu erkennen.\n- **Handlungssignal**: Flow Imbalance und Queue-Gauges zeigen, wann Kitchen-Kapazität skaliert werden sollte."
+      },
+      "transparent": true
+    },
+    {
+      "type": "piechart",
+      "title": "Beverage Mix Last 60m",
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (coffee) (increase(coffeeshop_beverages_sold_by_coffee_total{job=\"quarkus\"}[1h]))",
+          "legendFormat": "{{coffee}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "Kitchen ETA Gauge",
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "coffeeshop_kitchen_backpressure_seconds_estimate{job=\"quarkus\"}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Order Flow Balance (10m)",
+      "gridPos": {
+        "x": 18,
+        "y": 48,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(coffeeshop_orders_submitted_total{job=\"quarkus\"}[10m]))",
+          "legendFormat": "submitted/s",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "expr": "sum(rate(coffeeshop_orders_ready_total{job=\"quarkus\"}[10m]))",
+          "legendFormat": "ready/s",
+          "refId": "B",
+          "instant": true
+        },
+        {
+          "expr": "sum(rate(coffeeshop_orders_picked_up_total{job=\"quarkus\"}[10m]))",
+          "legendFormat": "picked-up/s",
+          "refId": "C",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "time": {
+    "from": "now-2h",
+    "to": "now"
+  }
+}

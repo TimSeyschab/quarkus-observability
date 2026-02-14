@@ -1,0 +1,76 @@
+# Tempo-Konfiguration fuer lokalen Single-Node-Betrieb mit OTLP-Ingest und Metrics-Generator.
+
+# Deaktiviert Multi-Tenant-Authentifizierung im Demo-Setup.
+auth_enabled: false
+
+server:
+  # HTTP-Port fuer Tempo-API, Query und Health-Endpunkte.
+  http_listen_port: 3200
+
+memberlist:
+  # Memberlist-Peers fuer den Ring (hier nur eigener Service).
+  join_members:
+    - tempo:7946
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          # OTLP/gRPC-Empfangsport fuer Traces.
+          endpoint: 0.0.0.0:4317
+        http:
+          # OTLP/HTTP-Empfangsport fuer Traces.
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  # Zeit, nach der ein inaktiver Trace als abgeschlossen betrachtet wird.
+  trace_idle_period: 10s
+  # Zielgroesse eines Blocks in Bytes vor Flush.
+  max_block_bytes: 1000000
+  # Maximale Dauer eines Blocks vor erzwungenem Flush.
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    # Aufbewahrungsdauer der Trace-Bloecke.
+    block_retention: 24h
+
+storage:
+  trace:
+    # Storage-Backend fuer Trace-Daten.
+    backend: local
+    local:
+      # Pfad fuer persistierte Trace-Bloecke.
+      path: /var/tempo/traces
+    wal:
+      # Pfad fuer Write-Ahead-Log.
+      path: /var/tempo/wal
+
+metrics_generator:
+  ring:
+    kvstore:
+      # Ring-KV-Store fuer Generator-Instanzen.
+      store: memberlist
+  processor:
+    # Aktiviert lokale Block-Auswertung fuer TraceQL-Metriken.
+    local_blocks: {}
+    # Aktiviert Service-Graph-Metriken.
+    service_graphs: {}
+    # Aktiviert Span-Metriken (RED-ähnliche Kennzahlen).
+    span_metrics: {}
+  traces_storage:
+    # Pfad fuer temporären Trace-Speicher des Metrics-Generators.
+    path: /var/tempo/generator/traces
+  storage:
+    # Basispfad fuer Generator-Storage.
+    path: /var/tempo/generator
+    remote_write:
+      - # Ziel fuer vom Generator erzeugte Metriken (Prometheus Remote Write API).
+        url: http://prometheus:9090/api/v1/write
+
+overrides:
+  defaults:
+    metrics_generator:
+      # Standardmaessig aktivierte Generator-Prozessoren.
+      processors: ["local-blocks", "service-graphs", "span-metrics"]

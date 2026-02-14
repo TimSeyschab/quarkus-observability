@@ -1,0 +1,282 @@
+# ============================================
+# Port-Map und UI-Endpunkte (für lokale Entwicklung)
+# --------------------------------------------
+# 3000  -> Grafana-UI (Dashboards, Explore, Alerting)
+# 8080  -> Quarkus App-API
+# 9090  -> Prometheus-UI (Targets, Queries, Alerts)
+# 3200  -> Tempo-API/Readiness
+# 3100  -> Loki-API
+# 3306  -> MariaDB
+# 9092  -> Redpanda-Kafka-Broker
+# 9104  -> MariaDB-Exporter-Metrik-Endpunkt
+#
+# Troubleshooting (Kurzfassung)
+# - Collector nicht erreichbar:
+#   Prüfen, ob `otel-collector` läuft und ob die App auf
+#   `http://otel-collector:4318` exportiert.
+# - Tempo Readiness hängt:
+#   `tempo-ready` pollt `http://tempo:3200/ready`; bei falscher
+#   Tempo-Konfiguration blockiert die gesamte Trace-Pipeline.
+# - Fehlende Logs in Loki:
+#   Bei `promtail` Docker-Mounts prüfen (`/var/run/docker.sock` und
+#   `/var/lib/docker/containers`), sonst können Container-Logs nicht gelesen werden.
+# ============================================
+services:
+  # app
+  # Rolle: Beispielanwendung, erzeugt Business-Traffic, Traces, Logs und Metriken.
+  # Datenfluss: Rein via HTTP (8080) und DB/Kafka-Abhängigkeiten; raus via OTLP an
+  # `otel-collector`, SQL an MariaDB und Kafka an Redpanda.
+  # Startlogik: wartet auf `mariadb` (gesund) für sichere DB-Initialisierung,
+  # auf `tempo-ready` (abgeschlossen) damit Traces nicht ins Leere laufen,
+  # auf gestartete `otel-collector`/`redpanda` für Telemetrie- und Event-Pfade.
+  app:
+    build:
+      context: .
+      dockerfile: src/main/docker/Dockerfile.jvm
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      tempo-ready:
+        condition: service_completed_successfully
+      otel-collector:
+        condition: service_started
+      redpanda:
+        condition: service_started
+    environment:
+      # Datenquelle: steuert DB-Authentifizierung und JDBC-Ziel für Quarkus.
+      QUARKUS_DATASOURCE_USERNAME: quarkus
+      QUARKUS_DATASOURCE_PASSWORD: quarkus
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:mariadb://mariadb:3306/quarkus
+      # QUARKUS_OTEL_*: aktiviert OTEL und definiert OTLP-Transport + Endpoint.
+      QUARKUS_OTEL_ENABLED: "true"
+      QUARKUS_OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      # Kafka-Broker-Adresse für Producer/Consumer der App.
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+    ports:
+      - "8080:8080"
+
+  # mariadb
+  # Rolle: persistenter relationaler Datenspeicher für App-Daten.
+  # Datenfluss: Rein via SQL von `app`; raus via SQL-Responses und intern
+  # via Exporter-Abfragen (`mariadb-exporter`).
+  # Startlogik: Healthcheck stellt sicher, dass DB wirklich Connections annimmt,
+  # bevor abhängige Services starten.
+  mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: quarkus
+      MARIADB_USER: quarkus
+      MARIADB_PASSWORD: quarkus
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # mariadb-exporter
+  # Rolle: übersetzt MariaDB-Status in Prometheus-Metriken.
+  # Datenfluss: Rein via SQL-Lesezugriffe auf MariaDB; raus via `/metrics` (9104)
+  # für Prometheus Scrapes.
+  # Startlogik: `depends_on: mariadb: service_healthy`, damit Scrapes erst starten,
+  # wenn die DB erreichbar ist.
+  mariadb-exporter:
+    image: prom/mysqld-exporter:v0.16.0
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    volumes:
+      - ./docker/mysqld-exporter/my.cnf:/etc/mysqld-exporter/my.cnf:ro
+    command:
+      - "--config.my-cnf=/etc/mysqld-exporter/my.cnf"
+      - "--collect.info_schema.tables"
+      - "--collect.info_schema.tables.databases=quarkus"
+    ports:
+      - "9104:9104"
+
+  # tempo
+  # Rolle: Trace-Backend (Speicherung + Query) für verteilte Traces.
+  # Datenfluss: Rein via OTLP (4317/4318) vom Collector; raus via Tempo API (3200)
+  # an Grafana/Clients.
+  # Startlogik: readiness wird extern durch `tempo-ready` abgesichert, damit
+  # nachgelagerte Komponenten erst bei voll initialisiertem Tempo weiterlaufen.
+  tempo:
+    image: grafana/tempo:2.10.0
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./docker/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+
+  # tempo-ready
+  # Rolle: init-artiger Readiness-Gatekeeper für Tempo.
+  # Datenfluss: Rein/Raus nur HTTP-Readiness-Checks gegen Tempo.
+  # Startlogik: blockiert abhängige Services bis `http://tempo:3200/ready` erfolgreich ist,
+  # verhindert frühes Starten des Collectors ohne verfügbares Trace-Backend.
+  tempo-ready:
+    image: curlimages/curl:8.11.1
+    depends_on:
+      - tempo
+    command:
+      [
+        "sh",
+        "-c",
+        "until curl -sf http://tempo:3200/ready; do sleep 1; done"
+      ]
+
+  # otel-collector
+  # Rolle: zentrale Telemetrie-Pipeline (Empfang, Verarbeitung, Weiterleitung).
+  # Datenfluss: Rein via OTLP von der App; raus via OTLP/Exporter Richtung Tempo
+  # und ggf. Prometheus-kompatible Endpunkte gemäß Collector-Config.
+  # Startlogik: hängt an erfolgreich abgeschlossenem `tempo-ready`, damit Trace-Exports
+  # nicht fehlschlagen, solange Tempo noch nicht bereit ist.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    user: "0:0"
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    depends_on:
+      tempo-ready:
+        condition: service_completed_successfully
+    volumes:
+      - ./docker/otel-collector/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - otelcol_data:/var/lib/otelcol
+
+  # prometheus
+  # Rolle: Zeitreihen-DB für Metriken und Alert-Regeln.
+  # Datenfluss: Rein via Scrapes (z. B. app, exporter, cadvisor); raus via Query-API/UI
+  # und als Datenquelle für Grafana.
+  # Startlogik: keine harte `depends_on`-Kette nötig; Prometheus kann Targets
+  # dynamisch als up/down beobachten.
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--enable-feature=exemplar-storage"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  # cadvisor
+  # Rolle: Container-/Host-Runtime-Metriken für Infrastrukturbeobachtung.
+  # Datenfluss: Rein via Docker/Host-Mounts; raus via Prometheus-Metriken-Endpoint.
+  # Startlogik: keine `depends_on` nötig, da unabhängig laufend und von Prometheus gescraped.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=15s
+      - --disable_metrics=advtcp,process,sched,tcp,udp,percpu,hugetlb,resctrl
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+  # loki
+  # Rolle: zentrales Log-Backend für strukturierte/Container-Logs.
+  # Datenfluss: Rein via Push von Promtail; raus via Query-API an Grafana.
+  # Startlogik: `promtail` hängt davon ab, damit Log-Shipper erst sendet,
+  # wenn Loki erreichbar ist.
+  loki:
+    image: grafana/loki:3.1.0
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    volumes:
+      - ./docker/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
+  # promtail
+  # Rolle: Log-Shipper, liest Docker-Container-Logs und sendet sie an Loki.
+  # Datenfluss: Rein via Docker-Socket + Container-Log-Dateien; raus via HTTP Push an Loki.
+  # Startlogik: `depends_on: loki`, um initiale Sendefehler beim Start zu reduzieren.
+  promtail:
+    image: grafana/promtail:3.1.0
+    command: ["-config.file=/etc/promtail/promtail-config.yml"]
+    volumes:
+      - ./docker/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+
+  # redpanda
+  # Rolle: Kafka-kompatibler Event-Broker für asynchrone App-Kommunikation.
+  # Datenfluss: Rein/Raus via Kafka-Protokoll (9092) zwischen App und Broker.
+  # Startlogik: App wartet auf gestarteten Broker (`service_started`), da im Dev-Setup
+  # keine zusätzliche Readiness-Probe definiert ist.
+  redpanda:
+    image: redpandadata/redpanda:v24.3.6
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+
+  # grafana
+  # Rolle: zentrales UI für Metriken/Logs/Traces inklusive Dashboards.
+  # Datenfluss: Rein via Datenquellen (Prometheus, Loki, Tempo); raus via Web-UI (3000).
+  # Startlogik: `depends_on` auf Datenquellen reduziert Start-Race-Conditions beim Provisioning,
+  # auch wenn einzelne Datenquellen später erneut verbunden werden können.
+  grafana:
+    image: grafana/grafana:12.3.3
+    depends_on:
+      - tempo
+      - prometheus
+      - loki
+      - cadvisor
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_USERS_DEFAULT_THEME: light
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/etc/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+
+volumes:
+  # Persistenz-Volumes
+  # - mariadb_data: DB-Daten (Schemas + Inhalte)
+  # - grafana_data: Grafana-Zustand (Plugins, Nutzer-/Org-Einstellungen)
+  # - loki_data: lokaler Loki-Storage/Index
+  # - prometheus_data: TSDB + lokale Rule-/WAL-Daten
+  # - tempo_data: Trace-Blöcke/Metadaten
+  # Lokaler Reset: Volumes löschen (z. B. via `docker compose down -v`), wenn
+  # Altzustände stören (inkonsistente Demos, fehlerhafte Migrationen, "dirty" Dashboards).
+  mariadb_data:
+  grafana_data:
+  loki_data:
+  prometheus_data:
+  tempo_data:
+  otelcol_data:

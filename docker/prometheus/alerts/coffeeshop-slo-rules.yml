@@ -1,0 +1,107 @@
+# Prometheus-Alertregeln fuer technische und fachliche CoffeeShop-SLOs.
+
+groups:
+  - # Gruppenname fuer technische SLO-Alerts.
+    name: coffeeshop-technical-slo
+    # Evaluierungsintervall der Regeln in dieser Gruppe.
+    interval: 30s
+    rules:
+      - # Eindeutiger Alertname.
+        alert: CoffeeShopHighHttpErrorRate
+        # PromQL-Ausdruck, der den Alert ausloest.
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{job="quarkus",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{job="quarkus"}[5m])), 0.001)
+          ) > 0.05
+        # Dauer, die die Bedingung anhalten muss.
+        for: 10m
+        labels:
+          # Kritikalitaet des Alerts.
+          severity: critical
+          # Zielpersona fuer den Alert.
+          persona: technician
+        annotations:
+          # Kurzbeschreibung fuer UI/Benachrichtigung.
+          summary: "HTTP-5xx-Fehlerquote liegt 10 Minuten lang ueber 5 %"
+          # Verweis auf passende Runbook-Sektion.
+          runbook_url: "docs/runbooks/observability-slo.md#technical-http-error-rate"
+
+      - alert: CoffeeShopHighHttpLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket{job="quarkus"}[5m]))
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+          persona: technician
+        annotations:
+          summary: "HTTP-p95-Latenz liegt 10 Minuten lang ueber 1 s"
+          runbook_url: "docs/runbooks/observability-slo.md#technical-http-latency-p95"
+
+      - alert: CoffeeShopKitchenBackpressureHigh
+        expr: coffeeshop_kitchen_backpressure_orders{job="quarkus"} > 12
+        for: 10m
+        labels:
+          severity: warning
+          persona: technician
+        annotations:
+          summary: "Kitchen-Queue liegt 10 Minuten lang ueber 12 Orders"
+          runbook_url: "docs/runbooks/observability-slo.md#technical-kitchen-backpressure"
+
+      - alert: CoffeeShopKitchenFailuresDetected
+        expr: increase(coffeeshop_kitchen_processing_failures_total{job="quarkus"}[10m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          persona: technician
+        annotations:
+          summary: "In den letzten 10 Minuten sind Kitchen-Verarbeitungsfehler aufgetreten"
+          runbook_url: "docs/runbooks/observability-slo.md#technical-kitchen-failures"
+
+  - # Gruppenname fuer fachliche SLO-Alerts.
+    name: coffeeshop-business-slo
+    # Evaluierungsintervall der Regeln in dieser Gruppe.
+    interval: 30s
+    rules:
+      - alert: CoffeeShopCustomerWaitP95TooHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(coffeeshop_customer_wait_to_ready_seconds_bucket{job="quarkus"}[5m]))
+          ) > 120
+        for: 10m
+        labels:
+          severity: warning
+          persona: manager
+        annotations:
+          summary: "Customer-Wait-p95 liegt 10 Minuten lang ueber 120 s"
+          runbook_url: "docs/runbooks/observability-slo.md#business-customer-wait-p95"
+
+      - alert: CoffeeShopKitchenEtaTooHigh
+        expr: coffeeshop_kitchen_backpressure_seconds_estimate{job="quarkus"} > 180
+        for: 10m
+        labels:
+          severity: warning
+          persona: manager
+        annotations:
+          summary: "Geschaetzte Kitchen-Backpressure-Zeit liegt 10 Minuten lang ueber 180 s"
+          runbook_url: "docs/runbooks/observability-slo.md#business-kitchen-eta"
+
+      - alert: CoffeeShopOrderFlowImbalance
+        expr: |
+          (
+            sum(rate(coffeeshop_orders_submitted_total{job="quarkus"}[10m]))
+            -
+            sum(rate(coffeeshop_orders_ready_total{job="quarkus"}[10m]))
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: warning
+          persona: manager
+        annotations:
+          summary: "Submitted-Order-Rate uebersteigt Ready-Rate 10 Minuten lang um mehr als 0,20 Orders/s"
+          runbook_url: "docs/runbooks/observability-slo.md#business-order-flow-imbalance"

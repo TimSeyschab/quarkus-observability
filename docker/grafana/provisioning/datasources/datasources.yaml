@@ -1,0 +1,87 @@
+# Grafana-Datasource-Provisioning fuer Loki, Prometheus und Tempo.
+
+# Schema-Version fuer Provisioning-Dateien.
+apiVersion: 1
+
+# Datasources, die beim Provisioning vorab geloescht werden sollen.
+deleteDatasources:
+  - # Name der zu loeschenden Datasource.
+    name: Loki
+    # Ziel-Organisation in Grafana.
+    orgId: 1
+  - name: Prometheus
+    orgId: 1
+  - name: Tempo
+    orgId: 1
+
+# Entfernt Datasources, die nicht mehr in dieser Datei definiert sind.
+prune: true
+
+# Liste der zu provisionierenden Datasources.
+datasources:
+  - # Anzeigename der Datasource in Grafana.
+    name: Loki
+    # Stabiler UID-Schluessel fuer Verknuepfungen.
+    uid: loki
+    # Datasource-Typ.
+    type: loki
+    # Zugriffsmode (proxy = ueber Grafana-Backend).
+    access: proxy
+    # URL des Loki-Backends.
+    url: http://loki:3100
+    # Kennzeichnet diese Datasource als Standardauswahl.
+    isDefault: false
+    jsonData:
+      # Abgeleitete Felder fuer Log->Trace-Korrelation.
+      derivedFields:
+        - # Feldname in der Grafana-Oberflaeche.
+          name: TraceID
+          # Regex zum Extrahieren der Trace-ID aus Logzeilen.
+          matcherRegex: "(?:trace_id|traceId)=([0-9a-f]{16,32})"
+          # Ziel-Datasource fuer Link-Aufloesung.
+          datasourceUid: tempo
+          # Link-Template mit dem extrahierten Regex-Wert.
+          url: "$${__value.raw}"
+
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    # URL des Prometheus-Backends.
+    url: http://prometheus:9090
+    isDefault: false
+    jsonData:
+      # Mapping fuer Metrik-Exemplars auf Trace-ID-Ziel.
+      exemplarTraceIdDestinations:
+        - # Ziel-Datasource fuer Trace-Navigation.
+          datasourceUid: tempo
+          # Name des Trace-ID-Felds.
+          name: trace_id
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    # URL des Tempo-Backends.
+    url: http://tempo:3200
+    # Tempo als Standard-Datasource in Explore.
+    isDefault: true
+    jsonData:
+      tracesToLogsV2:
+        # Loki als Ziel fuer Trace->Log-Sprung.
+        datasourceUid: loki
+        # Zeitfenster-Versatz vor Trace-Start.
+        spanStartTimeShift: "-15m"
+        # Zeitfenster-Versatz nach Trace-Ende.
+        spanEndTimeShift: "15m"
+        # Filtert Logs auf identische Trace-ID.
+        filterByTraceID: true
+        # Filtert Logs auf identische Span-ID.
+        filterBySpanID: true
+        # Aktiviert benutzerdefinierte Log-Query.
+        customQuery: true
+        # LogQL-Query fuer Trace-korrelierte App-Logs.
+        query: '{service="app"} | logfmt | trace_id="$${__trace.traceId}"'
+      serviceMap:
+        # Prometheus-Datasource fuer Service-Map-Metriken.
+        datasourceUid: prometheus

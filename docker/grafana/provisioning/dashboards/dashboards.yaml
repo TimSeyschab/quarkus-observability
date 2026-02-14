@@ -1,0 +1,18 @@
+# Grafana-Dashboard-Provisioning aus lokalen JSON-Dateien.
+
+# Schema-Version fuer Provisioning-Dateien.
+apiVersion: 1
+
+# Liste der Dashboard-Provider.
+providers:
+  - # Provider-Name in Grafana.
+    name: default
+    # Provider-Typ (Dateisystem).
+    type: file
+    # Erlaubt das Loeschen provisionierter Dashboards bei Entfall aus der Quelle.
+    disableDeletion: false
+    # Erlaubt Bearbeitung der Dashboards in der Grafana-UI.
+    editable: true
+    options:
+      # Verzeichnis mit Dashboard-JSON-Dateien.
+      path: /etc/grafana/dashboards

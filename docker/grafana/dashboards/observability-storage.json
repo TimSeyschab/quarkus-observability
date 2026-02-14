@@ -1,0 +1,367 @@
+{
+  "id": null,
+  "uid": "observability-storage",
+  "title": "Observability - Storage Usage",
+  "tags": [
+    "observability",
+    "storage"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "15s",
+  "links": [
+    {
+      "title": "Technical Dashboard",
+      "url": "/d/quarkus-overview",
+      "type": "link",
+      "targetBlank": false
+    },
+    {
+      "title": "Management Dashboard",
+      "url": "/d/coffeeshop-management",
+      "type": "link",
+      "targetBlank": false
+    }
+  ],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Prometheus TSDB Total Size",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "prometheus_tsdb_storage_blocks_bytes{job=\"prometheus\"} + prometheus_tsdb_head_chunks_storage_size_bytes{job=\"prometheus\"} + prometheus_tsdb_wal_storage_size_bytes{job=\"prometheus\"}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Prometheus WAL Size",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "prometheus_tsdb_wal_storage_size_bytes{job=\"prometheus\"}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Prometheus Head Series",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "prometheus_tsdb_head_series{job=\"prometheus\"}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Prometheus TSDB Size Over Time",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "prometheus_tsdb_storage_blocks_bytes{job=\"prometheus\"} + prometheus_tsdb_head_chunks_storage_size_bytes{job=\"prometheus\"} + prometheus_tsdb_wal_storage_size_bytes{job=\"prometheus\"}",
+          "legendFormat": "tsdb total",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Loki Ingested Bytes Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(loki_bytes_per_line_sum{job=\"loki\"}[5m]))",
+          "legendFormat": "bytes/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tempo Flushed Block Bytes Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(tempo_ingester_flush_size_bytes_sum{job=\"tempo\"}[5m]))",
+          "legendFormat": "bytes/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "1h Data Growth (Loki / Tempo)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(loki_bytes_per_line_sum{job=\"loki\"}[1h]))",
+          "legendFormat": "loki bytes/1h",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(tempo_ingester_flush_size_bytes_sum{job=\"tempo\"}[1h]))",
+          "legendFormat": "tempo bytes/1h",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "MariaDB Total Size (quarkus schema)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=~\"data_length|index_length\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "MariaDB Data Size (quarkus schema)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=\"data_length\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "MariaDB Index Size (quarkus schema)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=\"index_length\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "MariaDB Largest Tables (Top 10)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "topk(10, sum by (table) (mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=~\"data_length|index_length\"}))",
+          "legendFormat": "{{table}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 8
+      }
+    },
+    {
+      "type": "text",
+      "title": "Storage-Leitfaden",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Storage-Leitfaden\n- **Prometheus**: Beobachte TSDB und WAL für Retention- und Scrape-Auswirkungen.\n- **Loki/Tempo-Wachstum**: Ingestion und Flushed Bytes zeigen den Observability-Kostentrend.\n- **MariaDB-Struktur**: Data-vs-Index-Anteil zeigt Overhead durch Query-/Index-Strategie.\n- **Planung**: Nutze Growth-Panels für Kapazitätsprognosen vor Disk-Engpässen."
+      },
+      "transparent": true
+    },
+    {
+      "type": "piechart",
+      "title": "MariaDB Data vs Index Share",
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (component) (mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=~\"data_length|index_length\"})",
+          "legendFormat": "{{component}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "1h Growth Snapshot (Loki vs Tempo)",
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(loki_bytes_per_line_sum{job=\"loki\"}[1h]))",
+          "legendFormat": "Loki",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "expr": "sum(increase(tempo_ingester_flush_size_bytes_sum{job=\"tempo\"}[1h]))",
+          "legendFormat": "Tempo",
+          "refId": "B",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  }
+}

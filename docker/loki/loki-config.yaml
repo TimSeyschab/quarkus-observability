@@ -1,0 +1,43 @@
+# Loki-Konfiguration fuer lokalen Single-Node-Betrieb.
+
+# Deaktiviert Multi-Tenant-Authentifizierung im Demo-Setup.
+auth_enabled: false
+
+server:
+  # HTTP-Port fuer Loki-API und Query-Endpunkte.
+  http_listen_port: 3100
+
+common:
+  # Interne Instance-Adresse fuer Single-Node-Ring.
+  instance_addr: 127.0.0.1
+  # Basisverzeichnis fuer Loki-Dateidaten.
+  path_prefix: /loki
+  storage:
+    filesystem:
+      # Verzeichnis fuer Chunk-Daten.
+      chunks_directory: /loki/chunks
+      # Verzeichnis fuer Rule-/State-Dateien.
+      rules_directory: /loki/rules
+  # Replikationsfaktor (1 fuer lokalen Einzelknoten).
+  replication_factor: 1
+  ring:
+    kvstore:
+      # Ring-Store im Speicher (kein externer KV-Store).
+      store: inmemory
+
+schema_config:
+  # Liste gueltiger Schemakonfigurationen ab Stichtag.
+  configs:
+    - # Startdatum, ab dem diese Schema-Definition gilt.
+      from: 2024-01-01
+      # Index-Backend (TSDB-Indexing in Loki 3.x).
+      store: tsdb
+      # Objekt-Store fuer Chunks (hier lokales Filesystem).
+      object_store: filesystem
+      # Aktive Schema-Version.
+      schema: v13
+      index:
+        # Prefix fuer Indexdateien.
+        prefix: index_
+        # Zeitraum pro Indexsegment.
+        period: 24h
