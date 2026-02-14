@@ -3,9 +3,11 @@
   "uid": "kafka-topics-overview",
   "title": "Kafka Topics Overview",
   "tags": [
-    "observability",
+    "consumer-lag",
     "kafka",
-    "redpanda"
+    "ops",
+    "redpanda",
+    "streaming"
   ],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -16,19 +18,33 @@
       "title": "Technical Dashboard",
       "url": "/d/quarkus-overview",
       "type": "link",
-      "targetBlank": false
-    },
-    {
-      "title": "Compose Services",
-      "url": "/d/compose-services-overview",
-      "type": "link",
-      "targetBlank": false
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
     },
     {
       "title": "Management Dashboard",
       "url": "/d/coffeeshop-management",
       "type": "link",
-      "targetBlank": false
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "Compose Services",
+      "url": "/d/compose-services-overview",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "Storage Dashboard",
+      "url": "/d/observability-storage",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
     }
   ],
   "templating": {
@@ -38,7 +54,10 @@
         "type": "query",
         "label": "Topic",
         "hide": 0,
-        "datasource": "Prometheus",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "query": "label_values(vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic!~\"__.*\"}, topic)",
         "refresh": 2,
         "multi": true,
@@ -55,7 +74,10 @@
         "type": "query",
         "label": "Consumer Group",
         "hide": 0,
-        "datasource": "Prometheus",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "query": "label_values(vectorized_kafka_group_offset{job=\"redpanda\"}, group)",
         "refresh": 2,
         "multi": true,
@@ -66,6 +88,18 @@
           "text": "All",
           "value": ".*"
         }
+      },
+      {
+        "name": "log_filter",
+        "type": "textbox",
+        "label": "Log Filter",
+        "hide": 0,
+        "query": "kafka|redpanda|coffee-orders",
+        "current": {
+          "selected": false,
+          "text": "kafka|redpanda|coffee-orders",
+          "value": "kafka|redpanda|coffee-orders"
+        }
       }
     ]
   },
@@ -73,7 +107,10 @@
     {
       "type": "stat",
       "title": "Tracked Topics",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "count(count by (topic) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic!~\"__.*\",topic=~\"$topic\"}))",
@@ -91,12 +128,16 @@
         "y": 4,
         "w": 6,
         "h": 5
-      }
+      },
+      "description": "Anzahl beobachteter Topics nach aktueller Auswahl."
     },
     {
       "type": "stat",
       "title": "Active Consumer Groups",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "count(count by (group) (vectorized_kafka_group_offset{job=\"redpanda\",group=~\"$group\"}))",
@@ -114,12 +155,16 @@
         "y": 4,
         "w": 6,
         "h": 5
-      }
+      },
+      "description": "Anzahl aktiver Consumer-Gruppen in der aktuellen Filterung."
     },
     {
       "type": "stat",
       "title": "Total Consumer Lag",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
@@ -137,12 +182,16 @@
         "y": 4,
         "w": 6,
         "h": 5
-      }
+      },
+      "description": "Gesamter Konsumenten-Lag ueber alle ausgewaehlten Topics/Groups."
     },
     {
       "type": "stat",
       "title": "Top Lagged Partition",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "max(clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
@@ -160,12 +209,16 @@
         "y": 4,
         "w": 6,
         "h": 5
-      }
+      },
+      "description": "Maximaler Partitions-Lag als schneller Worst-Case-Indikator."
     },
     {
       "type": "timeseries",
       "title": "Records Produced/s by Topic",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (topic) (rate(vectorized_cluster_partition_records_produced{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}[5m]))",
@@ -184,12 +237,16 @@
         "y": 9,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Producer-Durchsatz pro Topic in Records pro Sekunde."
     },
     {
       "type": "timeseries",
       "title": "Records Fetched/s by Topic",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (topic) (rate(vectorized_cluster_partition_records_fetched{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}[5m]))",
@@ -208,12 +265,16 @@
         "y": 9,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Consumer-Durchsatz pro Topic in Records pro Sekunde."
     },
     {
       "type": "timeseries",
       "title": "Bytes Produced/s by Topic",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (topic) (rate(vectorized_cluster_partition_bytes_produced_total{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}[5m]))",
@@ -232,12 +293,16 @@
         "y": 17,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Producer-Last pro Topic in Byte pro Sekunde."
     },
     {
       "type": "timeseries",
       "title": "Consumer Lag by Topic/Group",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (topic,group) (clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
@@ -256,12 +321,16 @@
         "y": 17,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Lag-Trend pro Topic und Consumer-Gruppe."
     },
     {
       "type": "timeseries",
       "title": "Producer Errors & Retries (App)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (topic) (rate(kafka_producer_topic_record_error_total{job=\"quarkus\",topic=~\"$topic\"}[5m]))",
@@ -285,12 +354,16 @@
         "y": 25,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "App-seitige Producer Errors/Retries zur Trennung von Broker- und Clientproblemen."
     },
     {
       "type": "table",
       "title": "Top Partition Lag (Topic/Group/Partition)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "topk(20, clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
@@ -310,15 +383,19 @@
         "y": 25,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Top-N Detailansicht fuer gezielte Partition-Fehleranalyse."
     },
     {
       "type": "logs",
       "title": "Kafka-Related Logs (app/redpanda)",
-      "datasource": "Loki",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
       "targets": [
         {
-          "expr": "{service=~\"app|redpanda\"} |~ \"kafka|redpanda|coffee-orders\"",
+          "expr": "{service=~\"app|redpanda\"} |~ \"$log_filter\"",
           "refId": "A"
         }
       ],
@@ -327,14 +404,21 @@
         "showLabels": true,
         "showCommonLabels": false,
         "wrapLogMessage": true,
-        "enableLogDetails": true
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": true,
+        "showControls": true,
+        "syntaxHighlighting": true
       },
       "gridPos": {
         "x": 0,
         "y": 33,
         "w": 24,
         "h": 8
-      }
+      },
+      "description": "Logs aus App/Redpanda mit frei editierbarem Suchmuster. Nutzt die neue Logs-Visualisierung (v12.3) mit Controls, Highlighting und Detailansicht."
     },
     {
       "type": "text",
@@ -349,7 +433,8 @@
         "mode": "markdown",
         "content": "### Kafka-Monitoring-Leitfaden\n- **Durchsatz**: Produced/Fetched Records und Bytes pro Topic zeigen die Last.\n- **Lag-Risiko**: Total Lag, Lag nach Topic/Group und Top Lagged Partition zeigen Consumer-Verzögerung.\n- **Fehlerkontext**: Producer Errors/Retries und Logs helfen, Broker- von App-Problemen zu trennen.\n- **Fokus**: Nutze Topic-/Group-Variablen, um den Impact-Bereich schnell einzugrenzen."
       },
-      "transparent": true
+      "transparent": true,
+      "description": "Runbook fuer Lag-, Durchsatz- und Fehlertriage."
     },
     {
       "type": "piechart",
@@ -360,7 +445,10 @@
         "w": 12,
         "h": 8
       },
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (topic) (rate(vectorized_cluster_partition_records_produced{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}[5m]))",
@@ -374,7 +462,8 @@
           "unit": "short"
         },
         "overrides": []
-      }
+      },
+      "description": "Topic-Anteile am Producer-Durchsatz im 5m-Fenster."
     },
     {
       "type": "bargauge",
@@ -385,7 +474,10 @@
         "w": 12,
         "h": 8
       },
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (topic,group) (clamp_min(max by (topic,partition) (vectorized_cluster_partition_end_offset{job=\"redpanda\",namespace=\"kafka\",topic=~\"$topic\"}) - on(topic,partition) group_left(group) max by (topic,partition,group) (vectorized_kafka_group_offset{job=\"redpanda\",topic=~\"$topic\",group=~\"$group\"}), 0))",
@@ -399,11 +491,13 @@
           "unit": "short"
         },
         "overrides": []
-      }
+      },
+      "description": "Aktueller Lag-Snapshot pro Topic/Gruppe fuer Priorisierung."
     }
   ],
   "time": {
     "from": "now-1h",
     "to": "now"
-  }
+  },
+  "description": "Kafka/Redpanda Dashboard fuer Topic-Durchsatz, Consumer-Lag und producerseitige Fehlersignale."
 }

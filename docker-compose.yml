@@ -239,6 +239,8 @@ services:
       - PLAINTEXT://0.0.0.0:9092
       - --advertise-kafka-addr
       - PLAINTEXT://redpanda:9092
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
     ports:
       - "9092:9092"
 
@@ -272,6 +274,7 @@ volumes:
   # - loki_data: lokaler Loki-Storage/Index
   # - prometheus_data: TSDB + lokale Rule-/WAL-Daten
   # - tempo_data: Trace-Blöcke/Metadaten
+  # - redpanda_data: Kafka-Logsegmente + Metadaten des Brokers
   # Lokaler Reset: Volumes löschen (z. B. via `docker compose down -v`), wenn
   # Altzustände stören (inkonsistente Demos, fehlerhafte Migrationen, "dirty" Dashboards).
   mariadb_data:
@@ -280,3 +283,4 @@ volumes:
   prometheus_data:
   tempo_data:
   otelcol_data:
+  redpanda_data:

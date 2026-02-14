@@ -3,7 +3,7 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-2}"
-ROUNDS="${ROUNDS:-103}"
+ROUNDS="${ROUNDS:-3}"
 MAX_POLLS="${MAX_POLLS:-40}"
 COFFEE_ID_1="${COFFEE_ID_1:-1}"
 COFFEE_ID_2="${COFFEE_ID_2:-2}"

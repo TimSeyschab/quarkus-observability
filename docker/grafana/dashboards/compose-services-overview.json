@@ -3,8 +3,10 @@
   "uid": "compose-services-overview",
   "title": "Compose Services Overview",
   "tags": [
-    "observability",
     "docker",
+    "docker-compose",
+    "infra",
+    "ops",
     "services"
   ],
   "timezone": "browser",
@@ -16,19 +18,33 @@
       "title": "Technical Dashboard",
       "url": "/d/quarkus-overview",
       "type": "link",
-      "targetBlank": false
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
     },
     {
       "title": "Management Dashboard",
       "url": "/d/coffeeshop-management",
       "type": "link",
-      "targetBlank": false
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
     },
     {
       "title": "Storage Dashboard",
       "url": "/d/observability-storage",
       "type": "link",
-      "targetBlank": false
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "Kafka Topics",
+      "url": "/d/kafka-topics-overview",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
     }
   ],
   "templating": {
@@ -38,12 +54,15 @@
         "type": "query",
         "label": "Service",
         "hide": 0,
-        "datasource": "Loki",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "query": "label_values({service=~\".+\"}, service)",
         "refresh": 2,
         "multi": true,
         "includeAll": true,
-        "allValue": ".*",
+        "allValue": ".+",
         "current": {
           "selected": true,
           "text": "All",
@@ -56,7 +75,10 @@
     {
       "type": "stat",
       "title": "Running Services (Compose)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "count(count by (container_label_com_docker_compose_service) (container_last_seen{container_label_com_docker_compose_project=\"quarkus-observability\", container_label_com_docker_compose_service=~\"$service\"}))",
@@ -74,12 +96,16 @@
         "y": 4,
         "w": 8,
         "h": 6
-      }
+      },
+      "description": "Anzahl eindeutig aktiver Compose-Services."
     },
     {
       "type": "stat",
       "title": "Running Containers",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "count(container_last_seen{container_label_com_docker_compose_project=\"quarkus-observability\", container_label_com_docker_compose_service=~\"$service\"})",
@@ -97,12 +123,16 @@
         "y": 4,
         "w": 8,
         "h": 6
-      }
+      },
+      "description": "Anzahl laufender Container im Compose-Projekt."
     },
     {
       "type": "stat",
       "title": "Mean Service Heartbeat Age",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "avg(time() - max by (container_label_com_docker_compose_service) (container_last_seen{container_label_com_docker_compose_project=\"quarkus-observability\", container_label_com_docker_compose_service=~\"$service\"}))",
@@ -120,12 +150,16 @@
         "y": 4,
         "w": 8,
         "h": 6
-      }
+      },
+      "description": "Mittleres Alter des letzten Container-Heartbeat-Signals."
     },
     {
       "type": "timeseries",
       "title": "CPU Usage by Service",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"quarkus-observability\", image!=\"\", container_label_com_docker_compose_service=~\"$service\"}[5m]))",
@@ -144,12 +178,16 @@
         "y": 10,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "CPU-Verbrauch je Service fuer Lastverteilung und Ausreisser."
     },
     {
       "type": "timeseries",
       "title": "Memory Working Set by Service",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (container_label_com_docker_compose_service) (container_memory_working_set_bytes{container_label_com_docker_compose_project=\"quarkus-observability\", image!=\"\", container_label_com_docker_compose_service=~\"$service\"})",
@@ -168,12 +206,16 @@
         "y": 10,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Aktive Speichernutzung je Service fuer Kapazitaetsplanung."
     },
     {
       "type": "timeseries",
       "title": "Network Receive by Service",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (container_label_com_docker_compose_service) (rate(container_network_receive_bytes_total{container_label_com_docker_compose_project=\"quarkus-observability\", container_label_com_docker_compose_service=~\"$service\"}[5m]))",
@@ -192,12 +234,16 @@
         "y": 18,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Empfangene Netzwerkbytes pro Service."
     },
     {
       "type": "timeseries",
       "title": "Network Transmit by Service",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (container_label_com_docker_compose_service) (rate(container_network_transmit_bytes_total{container_label_com_docker_compose_project=\"quarkus-observability\", container_label_com_docker_compose_service=~\"$service\"}[5m]))",
@@ -216,12 +262,16 @@
         "y": 18,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Gesendete Netzwerkbytes pro Service."
     },
     {
       "type": "table",
       "title": "Service Heartbeat Age (s)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "time() - max by (container_label_com_docker_compose_service) (container_last_seen{container_label_com_docker_compose_project=\"quarkus-observability\", container_label_com_docker_compose_service=~\"$service\"})",
@@ -241,12 +291,16 @@
         "y": 26,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Tabellarische Detailsicht fuer veraltete Heartbeats pro Service."
     },
     {
       "type": "logs",
       "title": "Service Logs (Loki)",
-      "datasource": "Loki",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
       "targets": [
         {
           "expr": "{service=~\"$service\"}",
@@ -258,14 +312,21 @@
         "showLabels": true,
         "showCommonLabels": false,
         "wrapLogMessage": true,
-        "enableLogDetails": true
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": true,
+        "showControls": true,
+        "syntaxHighlighting": true
       },
       "gridPos": {
         "x": 12,
         "y": 26,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Service-spezifische Logs auf Basis der Service-Variable. Nutzt die neue Logs-Visualisierung (v12.3) mit Controls, Highlighting und Detailansicht."
     },
     {
       "type": "text",
@@ -280,7 +341,8 @@
         "mode": "markdown",
         "content": "### Compose-Betriebsleitfaden\n- **Verfügbarkeit zuerst**: Prüfe laufende Services/Container und das Heartbeat-Alter.\n- **Ressourcendruck**: Vergleiche CPU- und Speicherverteilung pro Service.\n- **Verkehrsasymmetrie**: Network Receive vs. Transmit zeigt Producer-/Consumer-Muster.\n- **Fehlersuche**: Nutze Service-Tabelle und Logs für gezieltes Drill-down."
       },
-      "transparent": true
+      "transparent": true,
+      "description": "Runbook fuer Betriebsdiagnose in Compose-Umgebungen."
     },
     {
       "type": "piechart",
@@ -291,7 +353,10 @@
         "w": 12,
         "h": 8
       },
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=\"quarkus-observability\", image!=\"\", container_label_com_docker_compose_service=~\"$service\"}[5m]))",
@@ -305,7 +370,8 @@
           "unit": "percentunit"
         },
         "overrides": []
-      }
+      },
+      "description": "Anteil am CPU-Verbrauch je Service im 5m-Fenster."
     },
     {
       "type": "bargauge",
@@ -316,7 +382,10 @@
         "w": 12,
         "h": 8
       },
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (container_label_com_docker_compose_service) (container_memory_working_set_bytes{container_label_com_docker_compose_project=\"quarkus-observability\", image!=\"\", container_label_com_docker_compose_service=~\"$service\"})",
@@ -330,11 +399,13 @@
           "unit": "bytes"
         },
         "overrides": []
-      }
+      },
+      "description": "Aktueller Memory-Footprint je Service als Vergleichsansicht."
     }
   ],
   "time": {
     "from": "now-1h",
     "to": "now"
-  }
+  },
+  "description": "Infrastruktur-Dashboard fuer Docker-Compose-Servicezustand, Ressourcenverbrauch und Betriebslogs."
 }

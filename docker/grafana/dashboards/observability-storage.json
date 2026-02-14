@@ -3,7 +3,9 @@
   "uid": "observability-storage",
   "title": "Observability - Storage Usage",
   "tags": [
-    "observability",
+    "capacity",
+    "database",
+    "retention",
     "storage"
   ],
   "timezone": "browser",
@@ -15,20 +17,43 @@
       "title": "Technical Dashboard",
       "url": "/d/quarkus-overview",
       "type": "link",
-      "targetBlank": false
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
     },
     {
       "title": "Management Dashboard",
       "url": "/d/coffeeshop-management",
       "type": "link",
-      "targetBlank": false
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "Compose Services",
+      "url": "/d/compose-services-overview",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "Kafka Topics",
+      "url": "/d/kafka-topics-overview",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": true
     }
   ],
   "panels": [
     {
       "type": "stat",
       "title": "Prometheus TSDB Total Size",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "prometheus_tsdb_storage_blocks_bytes{job=\"prometheus\"} + prometheus_tsdb_head_chunks_storage_size_bytes{job=\"prometheus\"} + prometheus_tsdb_wal_storage_size_bytes{job=\"prometheus\"}",
@@ -46,12 +71,16 @@
         "y": 4,
         "w": 8,
         "h": 8
-      }
+      },
+      "description": "Gesamtgroesse der Prometheus-Datenhaltung (Blocks + Head + WAL)."
     },
     {
       "type": "stat",
       "title": "Prometheus WAL Size",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "prometheus_tsdb_wal_storage_size_bytes{job=\"prometheus\"}",
@@ -69,12 +98,16 @@
         "y": 4,
         "w": 8,
         "h": 8
-      }
+      },
+      "description": "WAL-Groesse als Fruehindikator fuer Scrape-/Retention-Druck."
     },
     {
       "type": "stat",
       "title": "Prometheus Head Series",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "prometheus_tsdb_head_series{job=\"prometheus\"}",
@@ -92,12 +125,16 @@
         "y": 4,
         "w": 8,
         "h": 8
-      }
+      },
+      "description": "Aktive Zeitreihen im Head fuer Kardinalitaetsbeobachtung."
     },
     {
       "type": "timeseries",
       "title": "Prometheus TSDB Size Over Time",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "prometheus_tsdb_storage_blocks_bytes{job=\"prometheus\"} + prometheus_tsdb_head_chunks_storage_size_bytes{job=\"prometheus\"} + prometheus_tsdb_wal_storage_size_bytes{job=\"prometheus\"}",
@@ -116,12 +153,16 @@
         "y": 12,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Langzeittrend der Prometheus-Speichernutzung."
     },
     {
       "type": "timeseries",
       "title": "Loki Ingested Bytes Rate",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(rate(loki_bytes_per_line_sum{job=\"loki\"}[5m]))",
@@ -140,12 +181,16 @@
         "y": 12,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Ingestionsrate in Loki als Log-Kostenindikator."
     },
     {
       "type": "timeseries",
       "title": "Tempo Flushed Block Bytes Rate",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(rate(tempo_ingester_flush_size_bytes_sum{job=\"tempo\"}[5m]))",
@@ -164,12 +209,16 @@
         "y": 20,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Tempo-Flushrate als Trace-Volumenindikator."
     },
     {
       "type": "timeseries",
       "title": "1h Data Growth (Loki / Tempo)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(increase(loki_bytes_per_line_sum{job=\"loki\"}[1h]))",
@@ -193,12 +242,16 @@
         "y": 20,
         "w": 12,
         "h": 8
-      }
+      },
+      "description": "Datenwachstum je Stunde fuer Loki und Tempo im Vergleich."
     },
     {
       "type": "stat",
       "title": "MariaDB Total Size (quarkus schema)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=~\"data_length|index_length\"})",
@@ -216,12 +269,16 @@
         "y": 28,
         "w": 8,
         "h": 8
-      }
+      },
+      "description": "Gesamtgroesse des Quarkus-Schemas in MariaDB."
     },
     {
       "type": "stat",
       "title": "MariaDB Data Size (quarkus schema)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=\"data_length\"})",
@@ -239,12 +296,16 @@
         "y": 28,
         "w": 8,
         "h": 8
-      }
+      },
+      "description": "Reine Datengroesse (ohne Indizes) des Quarkus-Schemas."
     },
     {
       "type": "stat",
       "title": "MariaDB Index Size (quarkus schema)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=\"index_length\"})",
@@ -262,15 +323,19 @@
         "y": 28,
         "w": 8,
         "h": 8
-      }
+      },
+      "description": "Indexgroesse des Quarkus-Schemas zur Overhead-Bewertung."
     },
     {
       "type": "timeseries",
       "title": "MariaDB Largest Tables (Top 10)",
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
-          "expr": "topk(10, sum by (table) (mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=~\"data_length|index_length\"}))",
+          "expr": "topk(10, sum by (table) (mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=~\"data_length|index_length\",table=~\"$db_table\"}))",
           "legendFormat": "{{table}}",
           "refId": "A"
         }
@@ -286,7 +351,8 @@
         "y": 36,
         "w": 24,
         "h": 8
-      }
+      },
+      "description": "Groesste Tabellen im Quarkus-Schema; ueber DB-Table filterbar."
     },
     {
       "type": "text",
@@ -301,7 +367,8 @@
         "mode": "markdown",
         "content": "### Storage-Leitfaden\n- **Prometheus**: Beobachte TSDB und WAL für Retention- und Scrape-Auswirkungen.\n- **Loki/Tempo-Wachstum**: Ingestion und Flushed Bytes zeigen den Observability-Kostentrend.\n- **MariaDB-Struktur**: Data-vs-Index-Anteil zeigt Overhead durch Query-/Index-Strategie.\n- **Planung**: Nutze Growth-Panels für Kapazitätsprognosen vor Disk-Engpässen."
       },
-      "transparent": true
+      "transparent": true,
+      "description": "Runbook fuer Retention-, Kosten- und Kapazitaetssteuerung."
     },
     {
       "type": "piechart",
@@ -312,7 +379,10 @@
         "w": 12,
         "h": 8
       },
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum by (component) (mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=~\"data_length|index_length\"})",
@@ -326,7 +396,8 @@
           "unit": "bytes"
         },
         "overrides": []
-      }
+      },
+      "description": "Verhaeltnis von Daten- zu Indexanteil fuer Schema-Tuning."
     },
     {
       "type": "bargauge",
@@ -337,7 +408,10 @@
         "w": 12,
         "h": 8
       },
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(increase(loki_bytes_per_line_sum{job=\"loki\"}[1h]))",
@@ -357,11 +431,37 @@
           "unit": "bytes"
         },
         "overrides": []
-      }
+      },
+      "description": "Schneller Vergleich des 1h-Wachstums zwischen Logs und Traces."
     }
   ],
   "time": {
     "from": "now-6h",
     "to": "now"
+  },
+  "description": "Kapazitaets-Dashboard fuer Prometheus, Loki, Tempo und MariaDB innerhalb des Observability-Stacks.",
+  "templating": {
+    "list": [
+      {
+        "name": "db_table",
+        "type": "query",
+        "label": "DB Table",
+        "hide": 0,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(mysql_info_schema_table_size{job=\"mariadb\",schema=\"quarkus\",component=~\"data_length|index_length\"}, table)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        }
+      }
+    ]
   }
 }
